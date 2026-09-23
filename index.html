@@ -108,10 +108,13 @@
     }
   </style>
 </head>
-<body class="min-h-screen bg-[#0a0e17] text-slate-200 cyber-grid-pattern selection:bg-[#00ff66]/20 selection:text-[#00ff66]">
+<body class="min-h-screen bg-[#0a0e17] text-slate-200 cyber-grid-pattern selection:bg-[#00ff66]/20 selection:text-[#00ff66] isolate">
+
+  <!-- Screen Panel Fracture & Scratch Canvas Layer (behind main content) -->
+  <canvas id="screen-fracture-canvas" class="fixed inset-0 pointer-events-none" style="z-index: -1;"></canvas>
 
   <!-- Glow overlay -->
-  <div class="fixed inset-0 cyber-radial-glow pointer-events-none z-0"></div>
+  <div class="fixed inset-0 cyber-radial-glow pointer-events-none -z-[2]"></div>
 
   <!-- ROOT CONTAINER FOR APPLICATION -->
   <div id="app" class="relative z-10 flex flex-col min-h-screen"></div>
@@ -258,6 +261,30 @@
           
           osc.start();
           osc.stop(now + 0.16);
+        } catch (e) {}
+      }
+
+      playImpact() {
+        if (!this.enabled) return;
+        try {
+          this.initCtx();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(2200, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.045);
+          
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.start();
+          osc.stop(now + 0.045);
         } catch (e) {}
       }
     }
@@ -1706,6 +1733,7 @@
   labs               - Summary of all available and solved practice labs
   sound [on|off]     - Toggle button and audio telemetry effects
   matrix             - Trigger green digital rain memory dump
+  repair             - Recalibrate and clear active screen panel fractures
   history            - Display recent command line invocation history
   date               - Print current local and UTC chronometer`
           });
@@ -1879,6 +1907,17 @@ System ready. All red team vectors active.`
           });
           break;
 
+        case 'repair':
+        case 'reboot':
+          if (window.screenFractures) {
+            window.screenFractures.clearAll();
+          }
+          state.terminalHistory.push({
+            type: 'success',
+            text: '[+] Display panel recalibrated. Surface fissures and impact stresses cleared.'
+          });
+          break;
+
         case 'history':
           state.terminalHistory.push({
             type: 'output',
@@ -1950,7 +1989,7 @@ System ready. All red team vectors active.`
           }
         } else if (e.key === 'Tab') {
           e.preventDefault();
-          const tokens = ['help', 'clear', 'whoami', 'ls', 'cat flag.txt', 'skills', 'nmap', 'sudo -l', 'id', 'labs', 'sound', 'matrix', 'history'];
+          const tokens = ['help', 'clear', 'whoami', 'ls', 'cat flag.txt', 'skills', 'nmap', 'sudo -l', 'id', 'labs', 'sound', 'matrix', 'repair', 'history'];
           const val = input.value.trim();
           const match = tokens.find((t) => t.startsWith(val));
           if (match) {
@@ -2134,13 +2173,426 @@ System ready. All red team vectors active.`
       }
     };
 
-    // Initial mount
-    document.addEventListener('DOMContentLoaded', () => {
+    // =========================================================================
+    // REALISTIC SCREEN PANEL FRACTURE & SCRATCH SIMULATION ENGINE
+    // Ultra-HD Display Surface Abrasions & Interactive Impact Dynamics
+    // =========================================================================
+    class ScreenFractureSystem {
+      constructor() {
+        this.canvas = document.getElementById('screen-fracture-canvas');
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d', { alpha: true });
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        
+        this.scratches = [];
+        this.impacts = [];
+        this.maxImpacts = 7;
+        this.isLoopRunning = false;
+        
+        this.initCanvasSize();
+        this.generateAmbientScratches();
+        this.bindEvents();
+        this.render(); // initial static frame
+      }
+
+      initCanvasSize() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.canvas.width = Math.floor(this.width * this.dpr);
+        this.canvas.height = Math.floor(this.height * this.dpr);
+        this.canvas.style.width = this.width + 'px';
+        this.canvas.style.height = this.height + 'px';
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      }
+
+      generateAmbientScratches() {
+        this.scratches = [];
+        // Procedurally distribute realistic micro-scratches & diagonal stress abrasions across canvas
+        const count = Math.floor(Math.max(26, (this.width * this.height) / 40000));
+        
+        for (let i = 0; i < count; i++) {
+          const x = Math.random() * this.width;
+          const y = Math.random() * this.height;
+          const len = 15 + Math.random() * 65; // 15px to 80px
+          // Natural diagonal swipe angles mimicking device screen contact & maintenance wear
+          const baseAngle = (Math.random() > 0.45 ? -0.75 : 0.82) + (Math.random() - 0.5) * 0.5;
+          const curve = (Math.random() - 0.5) * 8;
+          const opacity = 0.04 + Math.random() * 0.12; // 0.04 to 0.16
+          
+          this.scratches.push({
+            x1: x,
+            y1: y,
+            cx: x + Math.cos(baseAngle) * (len * 0.5) + curve,
+            cy: y + Math.sin(baseAngle) * (len * 0.5) - curve,
+            x2: x + Math.cos(baseAngle) * len,
+            y2: y + Math.sin(baseAngle) * len,
+            opacity: opacity,
+            width: 0.5 + Math.random() * 0.5
+          });
+        }
+      }
+
+      bindEvents() {
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            this.initCanvasSize();
+            this.generateAmbientScratches();
+            this.requestFrame();
+          }, 80);
+        }, { passive: true });
+
+        // Global non-blocking pointer capture across window
+        window.addEventListener('pointerdown', (e) => {
+          // Only trigger on primary touch or left mouse click
+          if (e.button && e.button !== 0) return;
+          this.triggerImpact(e.clientX, e.clientY);
+        }, { passive: true });
+      }
+
+      triggerImpact(x, y) {
+        const now = performance.now();
+        // 180ms - 240ms organic fissure propagation with cubic ease-out
+        const duration = 180 + Math.random() * 60;
+
+        // Play subtle tactile screen contact chirp
+        if (typeof audioEngine !== 'undefined' && audioEngine.playImpact) {
+          audioEngine.playImpact();
+        }
+
+        // Dynamically spawn 2-3 localized surface scratches originating near impact point
+        const localScratches = 2 + Math.floor(Math.random() * 2);
+        for (let s = 0; s < localScratches; s++) {
+          const sAngle = Math.random() * Math.PI * 2;
+          const sLen = 15 + Math.random() * 35;
+          const sCurve = (Math.random() - 0.5) * 6;
+          this.scratches.push({
+            x1: x + (Math.random() - 0.5) * 8,
+            y1: y + (Math.random() - 0.5) * 8,
+            cx: x + Math.cos(sAngle) * (sLen * 0.5) + sCurve,
+            cy: y + Math.sin(sAngle) * (sLen * 0.5) - sCurve,
+            x2: x + Math.cos(sAngle) * sLen,
+            y2: y + Math.sin(sAngle) * sLen,
+            opacity: 0.06 + Math.random() * 0.08,
+            width: 0.55
+          });
+        }
+        if (this.scratches.length > 70) {
+          this.scratches.splice(0, localScratches);
+        }
+
+        // Generate procedural multi-tiered screen fracture network
+        const numFissures = 5 + Math.floor(Math.random() * 4); // 5 to 8 main fissures
+        const maxRadius = 45 + Math.random() * 65;
+        const branches = [];
+
+        // Micro-core crush cracks immediately hugging the impact point
+        const microCracks = [];
+        const microCount = 6 + Math.floor(Math.random() * 6);
+        for (let i = 0; i < microCount; i++) {
+          const mAngle = (i / microCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+          const mLen = 3 + Math.random() * 9;
+          microCracks.push({
+            x1: x,
+            y1: y,
+            x2: x + Math.cos(mAngle) * mLen,
+            y2: y + Math.sin(mAngle) * mLen
+          });
+        }
+
+        // Concentric stress fault arcs around epicenter
+        const concentricArcs = [];
+        const arcCount = 2 + Math.floor(Math.random() * 2);
+        for (let a = 0; a < arcCount; a++) {
+          const r = 7 + a * (8 + Math.random() * 7);
+          const startAngle = Math.random() * Math.PI * 2;
+          const arcLength = 0.5 + Math.random() * 1.3;
+          concentricArcs.push({ r, startAngle, endAngle: startAngle + arcLength });
+        }
+
+        // Main radiating fissures with jagged angles and fine hairline bifurcations
+        for (let i = 0; i < numFissures; i++) {
+          const baseAngle = (i / numFissures) * Math.PI * 2 + (Math.random() - 0.5) * 0.65;
+          let currX = x;
+          let currY = y;
+          let currentAngle = baseAngle;
+          
+          const numSegments = 3 + Math.floor(Math.random() * 3);
+          const segDistance = (maxRadius * (0.65 + Math.random() * 0.45)) / numSegments;
+          const fissureSegments = [];
+
+          for (let s = 0; s < numSegments; s++) {
+            currentAngle += (Math.random() - 0.5) * 0.5;
+            const length = segDistance * (0.8 + Math.random() * 0.4);
+            const nextX = currX + Math.cos(currentAngle) * length;
+            const nextY = currY + Math.sin(currentAngle) * length;
+
+            const seg = {
+              x1: currX,
+              y1: currY,
+              x2: nextX,
+              y2: nextY,
+              subBranch: null
+            };
+
+            // 45% chance of spawning high-frequency branching hairline fissure
+            if (s >= 1 && Math.random() < 0.45) {
+              const forkAngle = currentAngle + (Math.random() > 0.5 ? 0.65 : -0.65) + (Math.random() - 0.5) * 0.25;
+              const forkLen = length * (0.5 + Math.random() * 0.55);
+              seg.subBranch = {
+                x1: currX,
+                y1: currY,
+                x2: currX + Math.cos(forkAngle) * forkLen,
+                y2: currY + Math.sin(forkAngle) * forkLen
+              };
+            }
+
+            fissureSegments.push(seg);
+            currX = nextX;
+            currY = nextY;
+          }
+
+          branches.push(fissureSegments);
+        }
+
+        const impact = {
+          x,
+          y,
+          startTime: now,
+          duration,
+          branches,
+          microCracks,
+          concentricArcs,
+          shockwave: { maxRadius: 35 },
+          opacity: 1,
+          fading: false,
+          fadeStart: 0
+        };
+
+        this.impacts.push(impact);
+
+        // Strict cap on active fractures (6-8 epicenters) to maintain zero-lag memory bounds
+        if (this.impacts.length > this.maxImpacts) {
+          const oldest = this.impacts[0];
+          if (!oldest.fading) {
+            oldest.fading = true;
+            oldest.fadeStart = now;
+          }
+        }
+
+        this.requestFrame();
+      }
+
+      clearAll() {
+        this.impacts = [];
+        this.requestFrame();
+      }
+
+      requestFrame() {
+        if (!this.isLoopRunning) {
+          this.isLoopRunning = true;
+          requestAnimationFrame((t) => this.loop(t));
+        }
+      }
+
+      loop(now) {
+        let requiresNextFrame = false;
+
+        // Fade out expired fractures smoothly over 350ms
+        for (let i = this.impacts.length - 1; i >= 0; i--) {
+          const imp = this.impacts[i];
+          if (imp.fading) {
+            const fadeProgress = (now - imp.fadeStart) / 350;
+            imp.opacity = Math.max(0, 1 - fadeProgress);
+            if (imp.opacity <= 0) {
+              this.impacts.splice(i, 1);
+            } else {
+              requiresNextFrame = true;
+            }
+          }
+        }
+
+        // Check if any active fissure is still expanding
+        for (let i = 0; i < this.impacts.length; i++) {
+          const imp = this.impacts[i];
+          const elapsed = now - imp.startTime;
+          if (elapsed < imp.duration + 40) {
+            requiresNextFrame = true;
+          }
+        }
+
+        this.render(now);
+
+        // Performance conservation: pause loop when all cracks settle into static buffer
+        if (requiresNextFrame) {
+          requestAnimationFrame((t) => this.loop(t));
+        } else {
+          this.isLoopRunning = false;
+          // Final crisp static render
+          this.render(now);
+        }
+      }
+
+      render(now = performance.now()) {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // 1. RENDER SURFACE MICRO-SCRATCHES & STRESS ABRASIONS
+        ctx.save();
+        for (let i = 0; i < this.scratches.length; i++) {
+          const s = this.scratches[i];
+          
+          // Dark micro-indentation seam
+          ctx.beginPath();
+          ctx.moveTo(s.x1, s.y1);
+          ctx.quadraticCurveTo(s.cx, s.cy, s.x2, s.y2);
+          ctx.strokeStyle = `rgba(2, 6, 12, ${s.opacity * 0.9})`;
+          ctx.lineWidth = s.width;
+          ctx.stroke();
+
+          // Refractive surface edge highlight
+          ctx.beginPath();
+          ctx.moveTo(s.x1 + 0.4, s.y1 + 0.4);
+          ctx.quadraticCurveTo(s.cx + 0.4, s.cy + 0.4, s.x2 + 0.4, s.y2 + 0.4);
+          ctx.strokeStyle = `rgba(210, 230, 255, ${s.opacity * 0.55})`;
+          ctx.lineWidth = s.width * 0.6;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. RENDER PROCEDURAL SCREEN FRACTURE NETWORKS
+        for (let k = 0; k < this.impacts.length; k++) {
+          const imp = this.impacts[k];
+          const globalProgress = Math.min(1, (now - imp.startTime) / imp.duration);
+          // Ease-out cubic for realistic deceleration of crack propagation
+          const ease = 1 - Math.pow(1 - globalProgress, 3);
+          const alpha = imp.opacity;
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+
+          // A. CYBER SHOCKWAVE EXPANSION RING
+          if (globalProgress < 1) {
+            const waveRadius = imp.shockwave.maxRadius * ease;
+            const waveAlpha = (1 - ease) * 0.35 * alpha;
+            if (waveAlpha > 0.01) {
+              ctx.beginPath();
+              ctx.arc(imp.x, imp.y, waveRadius, 0, Math.PI * 2);
+              ctx.strokeStyle = `rgba(0, 229, 255, ${waveAlpha})`;
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+            }
+          }
+
+          // B. CONCENTRIC STRESS CRACKS AROUND IMPACT CORE
+          if (globalProgress > 0.12) {
+            const ringProgress = Math.min(1, (globalProgress - 0.12) / 0.88);
+            ctx.strokeStyle = 'rgba(225, 240, 255, 0.4)';
+            ctx.lineWidth = 0.8;
+            for (let a = 0; a < imp.concentricArcs.length; a++) {
+              const arc = imp.concentricArcs[a];
+              const curEnd = arc.startAngle + (arc.endAngle - arc.startAngle) * ringProgress;
+              ctx.beginPath();
+              ctx.arc(imp.x, imp.y, arc.r, arc.startAngle, curEnd);
+              ctx.stroke();
+            }
+          }
+
+          // C. MICRO-CRUSH CRACKS AT EPICENTER
+          const microProgress = Math.min(1, globalProgress / 0.35);
+          if (microProgress > 0) {
+            ctx.strokeStyle = 'rgba(230, 245, 255, 0.7)';
+            ctx.lineWidth = 0.9;
+            for (let m = 0; m < imp.microCracks.length; m++) {
+              const mc = imp.microCracks[m];
+              ctx.beginPath();
+              ctx.moveTo(mc.x1, mc.y1);
+              ctx.lineTo(
+                mc.x1 + (mc.x2 - mc.x1) * microProgress,
+                mc.y1 + (mc.y2 - mc.y1) * microProgress
+              );
+              ctx.stroke();
+            }
+          }
+
+          // D. MULTI-TIERED FISSURE NETWORKS WITH 4-PASS DISPLAY STRESS OPTICS
+          for (let b = 0; b < imp.branches.length; b++) {
+            const fissure = imp.branches[b];
+            const totalSegments = fissure.length;
+
+            // Pass 1: Subtle Chromatic Dispersion Fringe (Polarization stress shift)
+            ctx.strokeStyle = 'rgba(255, 42, 95, 0.22)';
+            ctx.lineWidth = 1.3;
+            this.drawFissurePath(ctx, fissure, ease, totalSegments, 0.5, 0.5);
+
+            ctx.strokeStyle = 'rgba(0, 229, 255, 0.22)';
+            ctx.lineWidth = 1.3;
+            this.drawFissurePath(ctx, fissure, ease, totalSegments, -0.5, -0.5);
+
+            // Pass 2: Deep High-Contrast Dark Internal Fissure Seam (1.5px, opacity ~0.95)
+            ctx.strokeStyle = 'rgba(2, 6, 14, 0.95)';
+            ctx.lineWidth = 1.5;
+            this.drawFissurePath(ctx, fissure, ease, totalSegments, 0, 0);
+
+            // Pass 3: Ultra-Sharp 0.75px Bright Hairline Highlight (offset 0.5px)
+            ctx.strokeStyle = 'rgba(240, 248, 255, 0.88)';
+            ctx.lineWidth = 0.75;
+            this.drawFissurePath(ctx, fissure, ease, totalSegments, -0.5, -0.5);
+          }
+
+          ctx.restore();
+        }
+      }
+
+      drawFissurePath(ctx, fissure, ease, totalSegments, offsetX, offsetY) {
+        const segmentsToDraw = totalSegments * ease;
+        
+        for (let s = 0; s < fissure.length; s++) {
+          if (segmentsToDraw <= s) break;
+          const seg = fissure[s];
+          const segProgress = Math.min(1, segmentsToDraw - s);
+
+          const targetX = seg.x1 + (seg.x2 - seg.x1) * segProgress;
+          const targetY = seg.y1 + (seg.y2 - seg.y1) * segProgress;
+
+          ctx.beginPath();
+          ctx.moveTo(seg.x1 + offsetX, seg.y1 + offsetY);
+          ctx.lineTo(targetX + offsetX, targetY + offsetY);
+          ctx.stroke();
+
+          // Hairline sub-branch bifurcation
+          if (seg.subBranch && segProgress > 0.4) {
+            const subProgress = Math.min(1, (segProgress - 0.4) / 0.6);
+            const sub = seg.subBranch;
+            ctx.beginPath();
+            ctx.moveTo(sub.x1 + offsetX, sub.y1 + offsetY);
+            ctx.lineTo(
+              sub.x1 + (sub.x2 - sub.x1) * subProgress + offsetX,
+              sub.y1 + (sub.y2 - sub.y1) * subProgress + offsetY
+            );
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    // Initial mount and system initialization
+    function bootstrapApplication() {
       renderApp();
+      window.screenFractures = new ScreenFractureSystem();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      bootstrapApplication();
     });
     // In case DOM is already ready
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      renderApp();
+      bootstrapApplication();
     }
   </script>
 </body>
